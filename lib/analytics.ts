@@ -10,12 +10,20 @@ interface EventProperties {
 export function trackEvent(name: EventName, properties?: EventProperties) {
   if (typeof window === "undefined") return;
 
+  const detail = {
+    name,
+    properties: properties ?? {},
+    timestamp: new Date().toISOString(),
+  };
+
+  window.dispatchEvent(new CustomEvent("omnigraph:event", { detail }));
+
   const va = (window as Window & { va?: (...args: unknown[]) => void }).va;
   if (typeof va === "function") {
     va("event", { name, ...properties });
   }
 
   if (process.env.NODE_ENV === "development") {
-    console.log(`[Analytics] ${name}`, properties);
+    console.log(`[Analytics] ${name}`, detail);
   }
 }

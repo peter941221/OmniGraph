@@ -1,0 +1,36 @@
+---
+title: "反思与修订循环"
+slug: "reflection-and-revision-loop"
+description: "让模型先自检再改写，提升输出质量。"
+category: "prompt-engineering"
+diagram_type: "flowchart"
+tags: ["Reflection", "Revision", "Quality"]
+difficulty: "intermediate"
+node_count: 8
+author: "OmniGraph"
+date: "2026-02-26"
+updated: "2026-02-26"
+version: 1
+---
+
+<Mermaid>
+flowchart TD
+  A["🧩 Goal: 反思与修订循环"] --> B["📌 Constraint Setup"]
+  B --> C["📝 Prompt Draft"]
+  C --> D["🤖 Model Response"]
+  D --> E["🔍 Critique & Score"]
+  E --> F{"Pass Threshold?"}
+  F -- No --> C
+  F -- Yes --> G["✅ Reusable Prompt"]
+</Mermaid>
+
+<Explain>
+### 核心逻辑
+- 让模型先自检再改写，提升输出质量。
+- 图中按“输入 -> 处理 -> 输出”组织，便于快速复现实现路径。
+- 可将此图作为技术评审或新人 onboarding 的讨论底图。
+</Explain>
+
+<Prompt>
+请用 Mermaid flowchart 语法绘制“反思与修订循环”图谱，要求节点简洁、流程完整、可直接复制到文档中使用。
+</Prompt>

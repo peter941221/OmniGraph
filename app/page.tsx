@@ -23,6 +23,7 @@ export default function HomePage() {
             <Link
               key={category}
               href={`/explore?category=${category}`}
+              prefetch={false}
               className="rounded-full border border-sky-200 bg-white/70 px-3 py-1 text-xs text-sky-800 hover:bg-white dark:border-sky-800 dark:bg-slate-900/70 dark:text-sky-300"
             >
               {category} ({count})
@@ -36,6 +37,7 @@ export default function HomePage() {
           <Link
             key={`${graph.category}-${graph.slug}`}
             href={`/graph/${graph.category}/${graph.slug}`}
+            prefetch={false}
             className="rounded-xl border border-slate-200 bg-white p-4 transition hover:-translate-y-0.5 hover:border-sky-300 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:hover:border-sky-700"
           >
             <p className="text-xs font-medium uppercase tracking-wide text-sky-700 dark:text-sky-300">

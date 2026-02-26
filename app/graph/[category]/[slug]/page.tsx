@@ -27,9 +27,23 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   }
 
+  const imageUrl = `/graph/${params.category}/${params.slug}/opengraph-image`;
+
   return {
     title: `${graph.frontmatter.title} - OmniGraph`,
     description: graph.frontmatter.description,
+    openGraph: {
+      title: graph.frontmatter.title,
+      description: graph.frontmatter.description,
+      images: [{ url: imageUrl }],
+      type: "article",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: graph.frontmatter.title,
+      description: graph.frontmatter.description,
+      images: [imageUrl],
+    },
   };
 }
 

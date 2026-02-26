@@ -4,15 +4,20 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
 
-import type { GraphSummary } from "@/lib/types";
-
-interface SearchDialogProps {
-  graphs: GraphSummary[];
+interface SearchItem {
+  title: string;
+  slug: string;
+  category: string;
+  tags: string[];
+  description: string;
 }
 
-export function SearchDialog({ graphs }: SearchDialogProps) {
+export function SearchDialog() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [graphs, setGraphs] = useState<SearchItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const result = useMemo(() => {
@@ -43,10 +48,23 @@ export function SearchDialog({ graphs }: SearchDialogProps) {
   useEffect(() => {
     if (open) {
       window.setTimeout(() => inputRef.current?.focus(), 0);
+      if (!loaded) {
+        setLoading(true);
+        fetch("/api/search")
+          .then((res) => res.json())
+          .then((payload: { items?: SearchItem[] }) => {
+            setGraphs(payload.items ?? []);
+            setLoaded(true);
+          })
+          .catch(() => {
+            setGraphs([]);
+          })
+          .finally(() => setLoading(false));
+      }
     } else {
       setQuery("");
     }
-  }, [open]);
+  }, [loaded, open]);
 
   return (
     <>
@@ -70,7 +88,9 @@ export function SearchDialog({ graphs }: SearchDialogProps) {
               className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-950"
             />
             <ul className="mt-3 max-h-[48vh] space-y-2 overflow-auto text-sm">
-              {result.length === 0 ? (
+              {loading ? (
+                <li className="rounded-md px-2 py-3 text-slate-500 dark:text-slate-400">正在加载索引...</li>
+              ) : result.length === 0 ? (
                 <li className="rounded-md px-2 py-3 text-slate-500 dark:text-slate-400">没有匹配结果</li>
               ) : (
                 result.map((item) => (

@@ -40,7 +40,7 @@ export function ZoomableCanvas({ children }: ZoomableCanvasProps) {
               </span>
             </div>
             <TransformComponent
-              wrapperClass="!w-full !h-[60vh] rounded-lg border border-slate-200 dark:border-slate-800"
+              wrapperClass="!w-full !h-[52vh] sm:!h-[60vh] rounded-lg border border-slate-200 dark:border-slate-800"
               contentClass="!w-full !h-full flex items-center justify-center p-6"
             >
               {children}

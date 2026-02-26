@@ -2,25 +2,22 @@ import Link from "next/link";
 
 import { SearchDialog } from "@/components/shared/SearchDialog";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
-import { getGraphSummaries } from "@/lib/content";
 
 export function Header() {
-  const graphs = getGraphSummaries();
-
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-950/80">
-      <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
-        <Link href="/" className="text-sm font-bold tracking-wide text-slate-900 dark:text-slate-100">
+      <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-2 px-4 sm:px-6">
+        <Link href="/" className="truncate text-sm font-bold tracking-wide text-slate-900 dark:text-slate-100">
           OmniGraph
         </Link>
-        <nav className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
+        <nav className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 sm:gap-3">
           <Link href="/explore" className="hover:text-slate-900 dark:hover:text-slate-100">
             Explore
           </Link>
-          <Link href="/about" className="hover:text-slate-900 dark:hover:text-slate-100">
+          <Link href="/about" className="hidden hover:text-slate-900 dark:hover:text-slate-100 sm:inline">
             About
           </Link>
-          <SearchDialog graphs={graphs} />
+          <SearchDialog />
           <ThemeToggle />
         </nav>
       </div>

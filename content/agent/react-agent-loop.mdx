@@ -1,0 +1,36 @@
+---
+title: "ReAct Agent 循环"
+slug: "react-agent-loop"
+description: "Thought / Action / Observation 的最小闭环。"
+category: "agent"
+diagram_type: "flowchart"
+tags: ["ReAct", "Agent", "Loop"]
+difficulty: "beginner"
+node_count: 8
+author: "OmniGraph"
+date: "2026-02-26"
+updated: "2026-02-26"
+version: 1
+---
+
+<Mermaid>
+flowchart TD
+  A["🎯 Task: ReAct Agent 循环"] --> B["🧠 Planner"]
+  B --> C["🛠️ Tool Selector"]
+  C --> D["⚙️ Tool Execution"]
+  D --> E["📝 Observation"]
+  E --> F{"Need More Steps?"}
+  F -- Yes --> B
+  F -- No --> G["✅ Final Output"]
+</Mermaid>
+
+<Explain>
+### 核心逻辑
+- Thought / Action / Observation 的最小闭环。
+- 图中按“输入 -> 处理 -> 输出”组织，便于快速复现实现路径。
+- 可将此图作为技术评审或新人 onboarding 的讨论底图。
+</Explain>
+
+<Prompt>
+请用 Mermaid flowchart 语法绘制“ReAct Agent 循环”图谱，要求节点简洁、流程完整、可直接复制到文档中使用。
+</Prompt>

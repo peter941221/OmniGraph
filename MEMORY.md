@@ -19,3 +19,14 @@
   - Enhanced explore page with category sidebar filtering and counts; homepage now shows category chips.
   - Expanded seed content to include `mlops` and `prompt-engineering`.
 - Regression status after Phase-2: `npm run validate`, `npm run lint`, and `npm run build` passed.
+- Completed "all do" implementation batch:
+  - Added scripted seed pipeline `scripts/seed-content.ts` and generated 50 MDX content files across 5 categories.
+  - Integrated Vercel Analytics (`@vercel/analytics/next`) with local event verification panel (`copy_code`, `click_export`, `click_fork`, `waitlist_submit`).
+  - Added search API route (`/api/search`) and switched global search to on-demand index fetch.
+  - Added OG image routes (`/opengraph-image` and `/graph/[category]/[slug]/opengraph-image`) plus metadata bindings.
+  - Added Lighthouse automation script (`scripts/run-lighthouse.ps1`) and generated reports under `.lighthouse/`.
+  - Latest Lighthouse snapshot:
+    - Home (desktop): Perf 100 / Acc 100 / Best 100 / SEO 100
+    - Graph detail (desktop): Perf 100 / Acc 98 / Best 100 / SEO 100
+    - Home (mobile): Perf 99 / Acc 100 / Best 100 / SEO 100
+- Regression status after "all do": `npm run validate`, `npm run lint`, and `npm run build` passed.
