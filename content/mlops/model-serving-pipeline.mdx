@@ -1,0 +1,38 @@
+---
+title: "模型服务发布流水线"
+slug: "model-serving-pipeline"
+description: "从训练产物到灰度发布与监控回流的 MLOps 服务链路。"
+category: "mlops"
+diagram_type: "flowchart"
+tags: ["MLOps", "Serving", "Monitoring"]
+difficulty: "intermediate"
+node_count: 11
+author: "OmniGraph"
+date: "2026-02-26"
+updated: "2026-02-26"
+version: 1
+---
+
+<Mermaid>
+flowchart LR
+  A["🏗️ Train Job"] --> B["📦 Model Registry"]
+  B --> C["🧪 Offline Eval"]
+  C --> D{"Pass Gate?"}
+  D -- No --> B
+  D -- Yes --> E["🚀 Canary Deploy"]
+  E --> F["📈 Online Metrics"]
+  F --> G{"SLO Healthy?"}
+  G -- Yes --> H["✅ Full Rollout"]
+  G -- No --> I["↩️ Auto Rollback"]
+</Mermaid>
+
+<Explain>
+### 关键机制
+- 发布门禁把离线质量和线上稳定性串成闭环。
+- Canary 先小流量验证，异常自动回滚。
+- 指标回流用于下次训练和迭代优化。
+</Explain>
+
+<Prompt>
+用 Mermaid flowchart 展示 MLOps 模型发布流程，包含 Registry、Canary、监控、回滚和全量发布。
+</Prompt>

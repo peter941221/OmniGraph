@@ -1,11 +1,12 @@
 import Link from "next/link";
 
-import { getGraphSummaries } from "@/lib/content";
+import { getCategoryCounts, getGraphSummaries } from "@/lib/content";
 
 export default function HomePage() {
   const graphs = getGraphSummaries()
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 9);
+  const categoryCounts = Object.fromEntries(getCategoryCounts());
 
   return (
     <div className="space-y-8">
@@ -17,6 +18,17 @@ export default function HomePage() {
         <p className="mt-3 max-w-2xl text-sm text-slate-700 dark:text-slate-300">
           内容即代码，图谱即文档。每张图包含 Mermaid、解析、可复用 Prompt，帮助你从理解走向落地。
         </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {Object.entries(categoryCounts).map(([category, count]) => (
+            <Link
+              key={category}
+              href={`/explore?category=${category}`}
+              className="rounded-full border border-sky-200 bg-white/70 px-3 py-1 text-xs text-sky-800 hover:bg-white dark:border-sky-800 dark:bg-slate-900/70 dark:text-sky-300"
+            >
+              {category} ({count})
+            </Link>
+          ))}
+        </div>
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

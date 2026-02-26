@@ -6,6 +6,7 @@ import { TabSwitcher } from "@/components/graph/TabSwitcher";
 import { ZoomableCanvas } from "@/components/graph/ZoomableCanvas";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { getAllGraphParams, getGraphBySlug } from "@/lib/content";
+import { highlightMermaidCode } from "@/lib/shiki";
 
 interface PageProps {
   params: {
@@ -27,14 +28,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   return {
-    title: `${graph.frontmatter.title} · OmniGraph`,
+    title: `${graph.frontmatter.title} - OmniGraph`,
     description: graph.frontmatter.description,
   };
 }
 
-export default function GraphPage({ params }: PageProps) {
+export default async function GraphPage({ params }: PageProps) {
   const graph = getGraphBySlug(params.category, params.slug);
   if (!graph) notFound();
+  const highlightedCode = await highlightMermaidCode(graph.mermaidCode);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -66,6 +68,7 @@ export default function GraphPage({ params }: PageProps) {
         </ZoomableCanvas>
         <TabSwitcher
           mermaidCode={graph.mermaidCode}
+          highlightedCode={highlightedCode}
           explainContent={graph.explainContent}
           promptContent={graph.promptContent}
           slug={graph.frontmatter.slug}

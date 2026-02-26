@@ -1,9 +1,10 @@
-type EventName = "waitlist_submit" | "copy_mermaid" | "open_graph";
+type EventName = "copy_code" | "click_export" | "click_fork" | "waitlist_submit";
 
 interface EventProperties {
   slug?: string;
   category?: string;
   feature?: string;
+  error?: string;
 }
 
 export function trackEvent(name: EventName, properties?: EventProperties) {

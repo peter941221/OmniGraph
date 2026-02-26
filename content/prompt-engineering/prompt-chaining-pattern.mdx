@@ -1,0 +1,36 @@
+---
+title: "Prompt Chaining 模式"
+slug: "prompt-chaining-pattern"
+description: "通过多阶段提示词拆分复杂任务，提高输出稳定性与可控性。"
+category: "prompt-engineering"
+diagram_type: "flowchart"
+tags: ["Prompt", "Chaining", "LLM Workflow"]
+difficulty: "beginner"
+node_count: 9
+author: "OmniGraph"
+date: "2026-02-26"
+updated: "2026-02-26"
+version: 1
+---
+
+<Mermaid>
+flowchart TD
+  A["📝 用户需求"] --> B["Stage 1: 任务拆解"]
+  B --> C["Stage 2: 信息补全"]
+  C --> D["Stage 3: 结构化生成"]
+  D --> E["Stage 4: 质量校验"]
+  E --> F{"达标?"}
+  F -- 否 --> C
+  F -- 是 --> G["✅ 最终输出"]
+</Mermaid>
+
+<Explain>
+### 什么时候用
+- 单次 Prompt 经常跑偏。
+- 任务需要多个中间状态。
+- 你希望可观测、可复盘、可替换每一步。
+</Explain>
+
+<Prompt>
+请画一个 Mermaid 流程图，描述 Prompt Chaining：任务拆解、信息补全、结构化生成、质量校验和循环修正。
+</Prompt>
