@@ -30,3 +30,7 @@
     - Graph detail (desktop): Perf 100 / Acc 98 / Best 100 / SEO 100
     - Home (mobile): Perf 99 / Acc 100 / Best 100 / SEO 100
 - Regression status after "all do": `npm run validate`, `npm run lint`, and `npm run build` passed.
+- Debug/refinement pass completed:
+  - Replaced dynamic OG runtime routes with static social card assets (`public/og/site-og.svg`, `public/og/graph-og.svg`) to remove build-time runtime warnings.
+  - Updated metadata image bindings to static OG assets.
+  - Confirmed clean production build output with no runtime warning line.

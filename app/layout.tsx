@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     description: "Code-level visual map for modern AI architecture.",
     url: siteUrl,
     siteName: "OmniGraph",
-    images: [{ url: "/opengraph-image" }],
+    images: [{ url: "/og/site-og.svg" }],
     locale: "zh_CN",
     type: "website",
   },
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "OmniGraph",
     description: "Code-level visual map for modern AI architecture.",
-    images: ["/opengraph-image"],
+    images: ["/og/site-og.svg"],
   },
 };
 

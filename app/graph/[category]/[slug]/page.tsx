@@ -27,7 +27,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   }
 
-  const imageUrl = `/graph/${params.category}/${params.slug}/opengraph-image`;
+  const imageUrl = "/og/graph-og.svg";
 
   return {
     title: `${graph.frontmatter.title} - OmniGraph`,

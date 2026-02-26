@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" fill="none">
+  <defs>
+    <linearGradient id="bg2" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FAFC"/>
+      <stop offset="1" stop-color="#E0F2FE"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg2)"/>
+
+  <g opacity="0.16">
+    <rect x="720" y="90" width="360" height="420" rx="24" fill="#1D4ED8"/>
+    <rect x="748" y="128" width="304" height="64" rx="14" fill="#FFFFFF"/>
+    <rect x="748" y="218" width="304" height="64" rx="14" fill="#FFFFFF"/>
+    <rect x="748" y="308" width="304" height="64" rx="14" fill="#FFFFFF"/>
+    <rect x="748" y="398" width="304" height="64" rx="14" fill="#FFFFFF"/>
+  </g>
+
+  <text x="72" y="100" font-size="32" font-family="Inter, Segoe UI, Arial, sans-serif" fill="#1D4ED8" letter-spacing="3">
+    OMNIGRAPH DETAIL
+  </text>
+  <text x="72" y="240" font-size="76" font-weight="800" font-family="Inter, Segoe UI, Arial, sans-serif" fill="#0F172A">
+    Mermaid • Explain • Prompt
+  </text>
+  <text x="72" y="320" font-size="32" font-family="Inter, Segoe UI, Arial, sans-serif" fill="#334155">
+    One page that turns complex AI architecture into actionable understanding.
+  </text>
+
+  <rect x="72" y="404" width="520" height="120" rx="20" fill="#FFFFFF" fill-opacity="0.76"/>
+  <text x="102" y="456" font-size="30" font-family="Inter, Segoe UI, Arial, sans-serif" fill="#0F172A">
+    Built for developers and builders.
+  </text>
+  <text x="102" y="496" font-size="24" font-family="Inter, Segoe UI, Arial, sans-serif" fill="#334155">
+    Read. Copy. Fork. Ship.
+  </text>
+</svg>
