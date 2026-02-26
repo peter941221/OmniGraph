@@ -34,3 +34,11 @@
   - Replaced dynamic OG runtime routes with static social card assets (`public/og/site-og.svg`, `public/og/graph-og.svg`) to remove build-time runtime warnings.
   - Updated metadata image bindings to static OG assets.
   - Confirmed clean production build output with no runtime warning line.
+- Runtime retest note:
+  - Local regression checks passed again (`validate`, `lint`, `build`).
+  - `127.0.0.1` without port is not OmniGraph; service is launched on `http://127.0.0.1:3100` because port `3000` is occupied by Docker/WSL on this machine.
+  - Live probe status: `/`, `/explore`, `/graph/rag/naive-rag-flow`, and `/api/search` all returned HTTP 200.
+- Mermaid interaction hotfix:
+  - Fixed canvas panning snap-back issue in `ZoomableCanvas`.
+  - Updated `TransformWrapper` config to disable bounds lock/alignment snap (`limitToBounds: false`, `alignmentAnimation.disabled: true`) and changed content sizing from full-fill to natural size.
+  - Regression checks after fix: `lint` and `build` passed.

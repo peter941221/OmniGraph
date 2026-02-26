@@ -14,9 +14,19 @@ export function ZoomableCanvas({ children }: ZoomableCanvasProps) {
         minScale={0.3}
         maxScale={3}
         initialScale={1}
+        centerOnInit
+        limitToBounds={false}
+        centerZoomedOut={false}
+        alignmentAnimation={{ disabled: true }}
         smooth
         wheel={{ step: 0.12 }}
-        panning={{ velocityDisabled: false }}
+        panning={{
+          disabled: false,
+          velocityDisabled: true,
+          allowLeftClickPan: true,
+          allowMiddleClickPan: true,
+          allowRightClickPan: false,
+        }}
       >
         {({ zoomIn, zoomOut, resetTransform }) => (
           <div>
@@ -41,7 +51,7 @@ export function ZoomableCanvas({ children }: ZoomableCanvasProps) {
             </div>
             <TransformComponent
               wrapperClass="!w-full !h-[52vh] sm:!h-[60vh] rounded-lg border border-slate-200 dark:border-slate-800"
-              contentClass="!w-full !h-full flex items-center justify-center p-6"
+              contentClass="!w-max !h-max p-6"
             >
               {children}
             </TransformComponent>
