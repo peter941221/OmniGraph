@@ -10,3 +10,4 @@
   - Added prebuild quality gate: `npm run validate` runs before `npm run build`.
 - Validation status: `npm run validate`, `npm run lint`, and `npm run build` all passed.
 - First construction commit created: `db59a85` (`feat: bootstrap omnigraph mvp foundation`).
+- Linked remote repository `origin` to `https://github.com/peter941221/OmniGraph.git` and completed first push (`master` -> `origin/master`) on 2026-02-26.
