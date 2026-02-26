@@ -9,3 +9,4 @@
   - Added content pipeline (`content/*/*.mdx`) with parser + build-time validation rules.
   - Added prebuild quality gate: `npm run validate` runs before `npm run build`.
 - Validation status: `npm run validate`, `npm run lint`, and `npm run build` all passed.
+- First construction commit created: `db59a85` (`feat: bootstrap omnigraph mvp foundation`).
