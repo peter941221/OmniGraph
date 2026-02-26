@@ -1,0 +1,40 @@
+---
+title: "基础 RAG (检索增强生成) 架构流"
+slug: "naive-rag-flow"
+description: "展示 RAG 从离线索引到在线检索生成的完整闭环。"
+category: "rag"
+diagram_type: "flowchart"
+tags: ["RAG", "向量数据库", "LLM"]
+difficulty: "beginner"
+node_count: 10
+author: "OmniGraph"
+date: "2026-02-26"
+updated: "2026-02-26"
+version: 1
+---
+
+<Mermaid>
+graph TD
+  A["📄 用户问题"] --> B["🔍 Query Embedding"]
+  B --> C[("🗄️ Vector DB")]
+  C --> D["📋 Context Assembly"]
+  D --> E["🤖 LLM"]
+  E --> F["💬 最终回答"]
+
+  subgraph Offline Indexing
+    H["📚 原始文档"] --> I["✂️ Chunking"]
+    I --> J["🔢 Embedding"]
+    J --> C
+  end
+</Mermaid>
+
+<Explain>
+### 关键流程
+1. 文档先离线切分并向量化，写入向量数据库。
+2. 查询请求在线向量化后检索 Top-K 上下文。
+3. 将上下文与问题拼接给 LLM，输出更可控答案。
+</Explain>
+
+<Prompt>
+请用 Mermaid flowchart 画出基础 RAG，包括离线索引与在线检索两个阶段，并标注 Embedding、Vector DB、LLM。
+</Prompt>

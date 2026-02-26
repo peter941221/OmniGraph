@@ -1,0 +1,41 @@
+---
+title: "Tool Calling 执行流"
+slug: "tool-calling-flow"
+description: "展示 Agent 从思考到调用工具再到汇总答案的循环。"
+category: "agent"
+diagram_type: "sequence"
+tags: ["Agent", "Tool Calling", "ReAct"]
+difficulty: "intermediate"
+node_count: 7
+author: "OmniGraph"
+date: "2026-02-26"
+updated: "2026-02-26"
+version: 1
+---
+
+<Mermaid>
+sequenceDiagram
+  participant User
+  participant Agent
+  participant Tool
+  participant LLM
+
+  User->>Agent: 提交任务
+  Agent->>LLM: 请求下一步计划
+  LLM-->>Agent: 选择调用工具
+  Agent->>Tool: 执行参数化调用
+  Tool-->>Agent: 返回结构化结果
+  Agent->>LLM: 汇总结果并请求最终回答
+  LLM-->>User: 输出答案
+</Mermaid>
+
+<Explain>
+### 核心价值
+- 工具调用把“会说”扩展为“会做”。
+- 结构化返回可降低 hallucination 风险。
+- 通过循环步骤保留可观测性与可调试性。
+</Explain>
+
+<Prompt>
+用 Mermaid sequenceDiagram 画一个 Agent Tool Calling 流程，包含用户、Agent、LLM、Tool 四个参与者。
+</Prompt>

@@ -1,0 +1,35 @@
+---
+title: "Transformer 架构总览"
+slug: "transformer-architecture"
+description: "从输入嵌入到多头注意力再到输出层的主干结构。"
+category: "llm-basics"
+diagram_type: "flowchart"
+tags: ["Transformer", "Attention", "LLM"]
+difficulty: "beginner"
+node_count: 8
+author: "OmniGraph"
+date: "2026-02-26"
+updated: "2026-02-26"
+version: 1
+---
+
+<Mermaid>
+graph LR
+  A["🧩 Token Embedding"] --> B["➕ Position Encoding"]
+  B --> C["🧠 Multi-Head Attention"]
+  C --> D["🔁 Add & Norm"]
+  D --> E["⚙️ Feed Forward"]
+  E --> F["🔁 Add & Norm"]
+  F --> G["📤 Linear + Softmax"]
+</Mermaid>
+
+<Explain>
+### 为什么 Transformer 有效
+- 注意力机制让模型能动态聚焦关键上下文。
+- 编码层结构可堆叠，天然适配大规模训练。
+- 并行计算友好，训练效率高于 RNN。
+</Explain>
+
+<Prompt>
+给我一个 Mermaid flowchart，描述 Transformer 编码器的主流程，包含 embedding、attention、feed-forward 和输出层。
+</Prompt>

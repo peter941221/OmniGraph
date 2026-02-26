@@ -1,0 +1,1625 @@
+
+
+# OmniGraph MVP 技术架构与实施方案（完整修订版）
+
+仓库：https://github.com/peter941221/OmniGraph
+
+> **版本**: v2.0 · **定位**: 解构 AI 知识的"代码级"可视化图谱平台
+> **原则**: 极简 · 敏捷 · 验证优先 · 内容即代码 · 单人全栈 2 周上线
+
+---
+
+## 一、项目概述与 MVP 边界
+
+### 1.1 核心验证假设
+
+| # | 假设 | 度量方式 | 成功阈值 |
+|---|------|----------|----------|
+| H1 | "Mermaid + 双栏"阅读体验对极客/开发者有吸引力 | 页面平均停留时长、滚动深度 | 停留 > 2min，滚动 > 60% |
+| H2 | 高质量 AI 架构图可通过 SEO 持续获取有机流量 | Google Search Console 点击量 | 上线 30 天 > 1000 次自然搜索点击 |
+| H3 | 导出/私有库功能存在付费意愿 | Fake Door 邮箱收集转化率 | 点击→提交转化 > 8% |
+
+### 1.2 MVP 明确不做
+
+- ❌ 用户注册 / 登录体系
+- ❌ 在线编辑器 / 用户 UGC
+- ❌ 数据库 / 后端 API
+- ❌ 真实支付流程
+- ❌ 多语言国际化（MVP 仅中文，为目标市场聚焦）
+
+---
+
+## 二、技术栈选型
+
+```
+┌──────────────────────────────────────────────────────┐
+│                    Vercel Edge Network               │
+│  ┌────────────────────────────────────────────────┐  │
+│  │         Next.js 14 (App Router · SSG)          │  │
+│  │  ┌──────────┐ ┌──────────┐ ┌───────────────┐  │  │
+│  │  │ Tailwind  │ │ Shadcn   │ │ next-mdx-     │  │  │
+│  │  │ CSS v3    │ │ UI       │ │ remote        │  │  │
+│  │  └──────────┘ └──────────┘ └───────────────┘  │  │
+│  │  ┌──────────┐ ┌──────────────────────────────┐│  │
+│  │  │mermaid.js│ │react-zoom-pan-pinch          ││  │
+│  │  │(client)  │ │(画布缩放/拖拽)                ││  │
+│  │  └──────────┘ └──────────────────────────────┘│  │
+│  │  ┌──────────┐ ┌──────────┐ ┌───────────────┐ │  │
+│  │  │ Shiki    │ │ Formspree│ │ Vercel        │ │  │
+│  │  │(代码高亮) │ │(表单收集) │ │ Analytics     │ │  │
+│  │  └──────────┘ └──────────┘ └───────────────┘ │  │
+│  └────────────────────────────────────────────────┘  │
+│              /content/*.mdx (Git 管理)               │
+└──────────────────────────────────────────────────────┘
+```
+
+### 选型决策记录
+
+| 关注点 | 选择 | 理由 |
+|--------|------|------|
+| 框架 | **Next.js 14 App Router + TypeScript** | SSG 首屏极速，文件路由即目录结构，`generateStaticParams` 天然适配 MDX |
+| UI | **Tailwind CSS + Shadcn UI** | Shadcn 非黑盒组件库（复制进项目即拥有），极客感强，可深度定制 |
+| 图表 | **mermaid.js v11** | 行业标准的文本→图表引擎，支持 flowchart / sequence / class / state 等 12+ 图类型 |
+| 画布交互 | **react-zoom-pan-pinch** | 体积仅 12KB gzip，API 极简，支持触屏双指手势 |
+| 代码高亮 | **Shiki**（替代 Prism） | 与 VS Code 同引擎，支持 Mermaid 语法 TextMate Grammar，SSG 时预渲染无 FOUC |
+| 内容 | **MDX + Frontmatter** | 纯文本 Git 管理，AI 可批量生成/校验，零数据库依赖 |
+| 表单 | **Formspree（免费档）** | 50 提交/月免费，自带垃圾邮件过滤、Webhook、CSV 导出 |
+| 部署 | **Vercel** | Next.js 原生支持，自动 Preview Deploy，全球 CDN |
+| 分析 | **Vercel Web Analytics + 自定义事件** | 零配置接入，隐私友好（无 Cookie），自定义事件支持转化漏斗 |
+
+---
+
+## 三、目录结构与数据模型
+
+### 3.1 项目目录
+
+```
+omnigraph/
+├── app/
+│   ├── layout.tsx              # 根布局（主题、字体、Analytics）
+│   ├── page.tsx                # 首页（图谱瀑布流 + Hero）
+│   ├── graph/
+│   │   └── [category]/
+│   │       └── [slug]/
+│   │           └── page.tsx    # 图谱详情页（双栏工作台）
+│   ├── explore/
+│   │   └── page.tsx            # 分类浏览页
+│   ├── about/
+│   │   └── page.tsx            # 关于页（产品故事 + Waitlist）
+│   ├── sitemap.ts              # 动态 Sitemap 生成
+│   ├── robots.ts               # Robots.txt
+│   └── not-found.tsx           # 404 页面
+├── components/
+│   ├── layout/
+│   │   ├── Header.tsx          # 顶部导航
+│   │   ├── Sidebar.tsx         # 左侧分类导航
+│   │   └── Footer.tsx
+│   ├── graph/
+│   │   ├── MermaidRenderer.tsx # Mermaid 渲染（客户端组件）
+│   │   ├── ZoomableCanvas.tsx  # 缩放/拖拽画布容器
+│   │   ├── CodePanel.tsx       # 代码展示 + 复制
+│   │   ├── ExplainPanel.tsx    # Markdown 解析面板
+│   │   ├── PromptPanel.tsx     # 生成提示词面板
+│   │   └── TabSwitcher.tsx     # 右侧 Tab 切换器
+│   ├── shared/
+│   │   ├── WaitlistModal.tsx   # 邮箱收集弹窗
+│   │   ├── CopyButton.tsx      # 一键复制 + Toast
+│   │   ├── ThemeToggle.tsx     # 深/浅色切换
+│   │   ├── SearchDialog.tsx    # ⌘K 快捷搜索（静态索引）
+│   │   └── Toast.tsx
+│   └── seo/
+│       └── JsonLd.tsx          # 结构化数据组件
+├── content/                    # 📁 全部图谱内容
+│   ├── llm-basics/
+│   │   ├── transformer-architecture.mdx
+│   │   ├── attention-mechanism.mdx
+│   │   └── tokenization-flow.mdx
+│   ├── rag/
+│   │   ├── naive-rag-flow.mdx
+│   │   ├── advanced-rag-pipeline.mdx
+│   │   └── hybrid-search-strategy.mdx
+│   ├── agent/
+│   │   ├── react-agent-loop.mdx
+│   │   ├── multi-agent-orchestration.mdx
+│   │   └── tool-calling-flow.mdx
+│   └── mlops/
+│       ├── model-serving-pipeline.mdx
+│       └── feature-store-architecture.mdx
+├── lib/
+│   ├── mdx.ts                 # MDX 解析 + Frontmatter 提取
+│   ├── content.ts             # 内容索引 + 分类查询
+│   ├── mermaid-themes.ts      # Mermaid 深/浅色主题配置
+│   ├── search-index.ts        # 构建时生成搜索索引
+│   └── analytics.ts           # 事件追踪封装
+├── hooks/
+│   ├── useTheme.ts
+│   ├── useCopyToClipboard.ts
+│   └── useMediaQuery.ts
+├── styles/
+│   └── globals.css             # Tailwind 指令 + Mermaid 覆写
+├── public/
+│   ├── og/                     # OG 图片（构建时可选生成）
+│   └── icons/
+├── next.config.mjs
+├── tailwind.config.ts
+├── tsconfig.json
+└── package.json
+```
+
+### 3.2 MDX 数据模型规范
+
+```mdx
+---
+# === 必填字段 ===
+title: "基础 RAG (检索增强生成) 架构流"
+slug: "naive-rag-flow"
+description: "解构最经典的 RAG 工作原理，包含文档向量化与大模型生成的完整生命周期。"
+category: "rag"
+diagram_type: "flowchart"        # flowchart | sequence | class | state | mindmap
+
+# === SEO / 展示 ===
+tags: ["RAG", "向量数据库", "LLM", "检索增强"]
+difficulty: "beginner"           # beginner | intermediate | advanced
+node_count: 12                   # 节点数量，用于复杂度标记
+
+# === 元信息 ===
+author: "OmniGraph"
+date: "2026-02-26"
+updated: "2026-02-28"
+version: 1
+---
+
+<Mermaid>
+graph TD
+    A["📄 用户提问"] --> B["🔍 Query Embedding"]
+    B --> C[("🗄️ Vector DB<br/>FAISS / Pinecone")]
+    C -->|"Top-K 相似文档"| D["📋 Context Assembly"]
+    D --> E["🤖 LLM<br/>GPT-4 / Claude"]
+    A --> E
+    E --> F["💬 生成回答"]
+    F --> G["✅ 返回用户"]
+
+    subgraph "离线索引阶段"
+        H["📚 原始文档"] --> I["✂️ 文档切分<br/>Chunking"]
+        I --> J["🔢 文本向量化<br/>Embedding Model"]
+        J --> C
+    end
+
+    style A fill:#e0f2fe,stroke:#0284c7
+    style E fill:#fef3c7,stroke:#f59e0b
+    style F fill:#d1fae5,stroke:#10b981
+</Mermaid>
+
+<Explain>
+### 核心逻辑解析
+
+**RAG（Retrieval-Augmented Generation）** 的本质是给大模型"开卷考试"：
+
+1. **离线索引阶段**
+   - **文档切分 (Chunking)**：将长文档按语义或固定窗口切为 256-512 token 的块
+   - **向量化 (Embedding)**：通过 `text-embedding-3-small` 等模型转为高维向量
+   - **入库存储**：向量存入 FAISS / Pinecone / Weaviate
+
+2. **在线检索阶段**
+   - 用户 Query 同样经过 Embedding
+   - 在向量库中做 ANN（近似最近邻）检索，取 Top-K
+   - 拼装为 Prompt Context，送入 LLM 生成最终回答
+
+### 常见陷阱
+- Chunk 过大 → 检索精度下降
+- Chunk 过小 → 上下文碎片化，LLM 无法推理
+- 未做 Re-ranking → Top-K 结果噪声多
+</Explain>
+
+<Prompt>
+### 生成此图的提示词
+
+```
+你是一个高级 AI 架构师。请用 Mermaid flowchart 语法画出基础 RAG 的完整数据流转图。
+
+要求：
+1. 包含离线索引和在线检索两个阶段
+2. 明确标注 Embedding Model、Vector DB、LLM 三个核心组件
+3. 使用 subgraph 区分离线/在线
+4. 节点使用 emoji 增强可读性
+5. 关键连线用文字标注数据流含义
+```
+</Prompt>
+```
+
+### 3.3 TypeScript 类型定义
+
+```typescript
+// lib/types.ts
+
+export interface GraphFrontmatter {
+  title: string
+  slug: string
+  description: string
+  category: Category
+  diagram_type: DiagramType
+  tags: string[]
+  difficulty: Difficulty
+  node_count: number
+  author: string
+  date: string
+  updated?: string
+  version: number
+}
+
+export type Category = 'llm-basics' | 'rag' | 'agent' | 'mlops' | 'prompt-engineering' | 'fine-tuning'
+
+export type DiagramType = 'flowchart' | 'sequence' | 'class' | 'state' | 'mindmap' | 'gantt' | 'er'
+
+export type Difficulty = 'beginner' | 'intermediate' | 'advanced'
+
+export interface GraphMeta extends GraphFrontmatter {
+  /** 文件相对路径，如 "rag/naive-rag-flow" */
+  filePath: string
+  /** 阅读时间估算（分钟） */
+  readingTime: number
+}
+
+export interface CategoryInfo {
+  slug: Category
+  name: string
+  description: string
+  icon: string
+  count: number
+}
+```
+
+---
+
+## 四、核心功能模块详细设计
+
+### 4.1 Mermaid 渲染引擎
+
+> **关键难点**：Mermaid 依赖 DOM，无法在 Node.js SSG 阶段运行，必须作为客户端组件处理。
+
+```typescript
+// components/graph/MermaidRenderer.tsx
+'use client'
+
+import { useEffect, useRef, useState, useCallback } from 'react'
+import mermaid from 'mermaid'
+import { useTheme } from 'next-themes'
+import { getMermaidThemeConfig } from '@/lib/mermaid-themes'
+
+interface MermaidRendererProps {
+  code: string
+  id: string
+}
+
+export function MermaidRenderer({ code, id }: MermaidRendererProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [svgContent, setSvgContent] = useState<string>('')
+  const [error, setError] = useState<string | null>(null)
+  const [isRendering, setIsRendering] = useState(true)
+  const { resolvedTheme } = useTheme()
+
+  const render = useCallback(async () => {
+    setIsRendering(true)
+    setError(null)
+    try {
+      // 根据当前主题动态配置
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: 'base',
+        themeVariables: getMermaidThemeConfig(resolvedTheme as 'light' | 'dark'),
+        securityLevel: 'loose', // 允许 HTML 标签（如 emoji）
+        fontFamily: 'Inter, "Noto Sans SC", monospace',
+        flowchart: {
+          useMaxWidth: false,  // 关闭自动宽度以支持缩放
+          htmlLabels: true,
+          curve: 'basis',
+        },
+      })
+
+      const { svg } = await mermaid.render(`mermaid-${id}`, code)
+      setSvgContent(svg)
+    } catch (err) {
+      console.error('Mermaid render error:', err)
+      setError('图表渲染失败，请检查 Mermaid 语法')
+    } finally {
+      setIsRendering(false)
+    }
+  }, [code, id, resolvedTheme])
+
+  useEffect(() => {
+    render()
+  }, [render])
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64 border border-destructive/50 rounded-lg bg-destructive/5">
+        <div className="text-center">
+          <p className="text-destructive font-mono text-sm">{error}</p>
+          <button onClick={render} className="mt-2 text-xs underline">
+            重试
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (isRendering) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-pulse text-muted-foreground">渲染中…</div>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      className="mermaid-container"
+      dangerouslySetInnerHTML={{ __html: svgContent }}
+    />
+  )
+}
+```
+
+```typescript
+// lib/mermaid-themes.ts
+
+export function getMermaidThemeConfig(theme: 'light' | 'dark') {
+  if (theme === 'dark') {
+    return {
+      primaryColor: '#3b82f6',
+      primaryTextColor: '#f8fafc',
+      primaryBorderColor: '#60a5fa',
+      lineColor: '#64748b',
+      secondaryColor: '#1e293b',
+      tertiaryColor: '#0f172a',
+      background: '#020617',
+      mainBkg: '#1e293b',
+      nodeBorder: '#475569',
+      clusterBkg: '#0f172a',
+      clusterBorder: '#334155',
+      titleColor: '#f1f5f9',
+      edgeLabelBackground: '#1e293b',
+      nodeTextColor: '#f1f5f9',
+    }
+  }
+  return {
+    primaryColor: '#3b82f6',
+    primaryTextColor: '#0f172a',
+    primaryBorderColor: '#2563eb',
+    lineColor: '#94a3b8',
+    secondaryColor: '#f1f5f9',
+    tertiaryColor: '#e2e8f0',
+    background: '#ffffff',
+    mainBkg: '#f8fafc',
+    nodeBorder: '#cbd5e1',
+    clusterBkg: '#f1f5f9',
+    clusterBorder: '#e2e8f0',
+    titleColor: '#0f172a',
+    edgeLabelBackground: '#ffffff',
+    nodeTextColor: '#0f172a',
+  }
+}
+```
+
+### 4.2 缩放画布容器
+
+```typescript
+// components/graph/ZoomableCanvas.tsx
+'use client'
+
+import { useRef } from 'react'
+import {
+  TransformWrapper,
+  TransformComponent,
+  useControls,
+} from 'react-zoom-pan-pinch'
+import { RotateCcw, ZoomIn, ZoomOut } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+
+function Controls() {
+  const { zoomIn, zoomOut, resetTransform } = useControls()
+  return (
+    <div className="absolute bottom-3 right-3 z-10 flex gap-1 bg-background/80 backdrop-blur-sm border rounded-lg p-1">
+      <Button variant="ghost" size="icon" onClick={() => zoomIn()} title="放大">
+        <ZoomIn className="h-4 w-4" />
+      </Button>
+      <Button variant="ghost" size="icon" onClick={() => zoomOut()} title="缩小">
+        <ZoomOut className="h-4 w-4" />
+      </Button>
+      <Button variant="ghost" size="icon" onClick={() => resetTransform()} title="恢复 100%">
+        <RotateCcw className="h-4 w-4" />
+      </Button>
+    </div>
+  )
+}
+
+interface ZoomableCanvasProps {
+  children: React.ReactNode
+}
+
+export function ZoomableCanvas({ children }: ZoomableCanvasProps) {
+  return (
+    <div className="relative w-full h-full min-h-[400px] border rounded-xl bg-muted/30 overflow-hidden">
+      <TransformWrapper
+        initialScale={1}
+        minScale={0.3}
+        maxScale={3}
+        centerOnInit
+        wheel={{ step: 0.08 }}
+        pinch={{ step: 5 }}
+        doubleClick={{ disabled: false, step: 0.5 }}
+      >
+        <Controls />
+        <TransformComponent
+          wrapperClass="!w-full !h-full"
+          contentClass="flex items-center justify-center p-8"
+        >
+          {children}
+        </TransformComponent>
+      </TransformWrapper>
+    </div>
+  )
+}
+```
+
+### 4.3 响应式双栏工作台
+
+```typescript
+// app/graph/[category]/[slug]/page.tsx
+
+import { notFound } from 'next/navigation'
+import { getGraphBySlug, getAllGraphSlugs } from '@/lib/content'
+import { MermaidRenderer } from '@/components/graph/MermaidRenderer'
+import { ZoomableCanvas } from '@/components/graph/ZoomableCanvas'
+import { TabSwitcher } from '@/components/graph/TabSwitcher'
+import { Sidebar } from '@/components/layout/Sidebar'
+import { JsonLd } from '@/components/seo/JsonLd'
+import type { Metadata } from 'next'
+
+interface PageProps {
+  params: { category: string; slug: string }
+}
+
+// SSG: 预生成所有图谱页面
+export async function generateStaticParams() {
+  const slugs = await getAllGraphSlugs()
+  return slugs.map(({ category, slug }) => ({ category, slug }))
+}
+
+// 动态 Metadata (TDK + OG)
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const graph = await getGraphBySlug(params.category, params.slug)
+  if (!graph) return {}
+
+  return {
+    title: `${graph.frontmatter.title} - OmniGraph`,
+    description: graph.frontmatter.description,
+    keywords: graph.frontmatter.tags,
+    openGraph: {
+      title: `${graph.frontmatter.title} - OmniGraph`,
+      description: graph.frontmatter.description,
+      type: 'article',
+      url: `https://omnigraph.dev/graph/${params.category}/${params.slug}`,
+      images: [{
+        url: `/og/${params.category}-${params.slug}.png`,
+        width: 1200,
+        height: 630,
+        alt: graph.frontmatter.title,
+      }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: graph.frontmatter.title,
+      description: graph.frontmatter.description,
+    },
+  }
+}
+
+export default async function GraphPage({ params }: PageProps) {
+  const graph = await getGraphBySlug(params.category, params.slug)
+  if (!graph) notFound()
+
+  const { frontmatter, mermaidCode, explainContent, promptContent } = graph
+
+  return (
+    <>
+      <JsonLd graph={frontmatter} />
+      <div className="flex h-[calc(100vh-64px)]">
+        {/* 左栏：分类导航 */}
+        <aside className="hidden lg:block w-[220px] border-r overflow-y-auto">
+          <Sidebar currentCategory={params.category} currentSlug={params.slug} />
+        </aside>
+
+        {/* 中栏：图表渲染 */}
+        <main className="flex-1 flex flex-col lg:flex-row min-w-0">
+          <section className="lg:w-[58%] h-[50vh] lg:h-full p-4">
+            <div className="mb-3">
+              <h1 className="text-xl font-bold tracking-tight">{frontmatter.title}</h1>
+              <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+                <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                  {frontmatter.category}
+                </span>
+                <span>·</span>
+                <span>{frontmatter.node_count} nodes</span>
+                <span>·</span>
+                <span className="capitalize">{frontmatter.difficulty}</span>
+              </div>
+            </div>
+            <ZoomableCanvas>
+              <MermaidRenderer code={mermaidCode} id={params.slug} />
+            </ZoomableCanvas>
+          </section>
+
+          {/* 右栏：Tab 面板 */}
+          <section className="lg:w-[42%] border-t lg:border-t-0 lg:border-l overflow-y-auto">
+            <TabSwitcher
+              mermaidCode={mermaidCode}
+              explainContent={explainContent}
+              promptContent={promptContent}
+              graphTitle={frontmatter.title}
+              slug={params.slug}
+            />
+          </section>
+        </main>
+      </div>
+    </>
+  )
+}
+```
+
+### 4.4 右侧 Tab 切换器（含交互按钮）
+
+```typescript
+// components/graph/TabSwitcher.tsx
+'use client'
+
+import { useState } from 'react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { CodePanel } from './CodePanel'
+import { ExplainPanel } from './ExplainPanel'
+import { PromptPanel } from './PromptPanel'
+import { CopyButton } from '@/components/shared/CopyButton'
+import { WaitlistModal } from '@/components/shared/WaitlistModal'
+import { Button } from '@/components/ui/button'
+import { Download, GitFork, Code2, BookOpen, Sparkles } from 'lucide-react'
+import { trackEvent } from '@/lib/analytics'
+
+interface TabSwitcherProps {
+  mermaidCode: string
+  explainContent: string
+  promptContent: string
+  graphTitle: string
+  slug: string
+}
+
+export function TabSwitcher({
+  mermaidCode,
+  explainContent,
+  promptContent,
+  graphTitle,
+  slug,
+}: TabSwitcherProps) {
+  const [exportModalOpen, setExportModalOpen] = useState(false)
+  const [forkModalOpen, setForkModalOpen] = useState(false)
+
+  return (
+    <div className="h-full flex flex-col">
+      {/* 操作按钮栏 */}
+      <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30">
+        <CopyButton
+          text={mermaidCode}
+          onCopied={() => trackEvent('copy_code', { slug })}
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            trackEvent('click_export', { slug })
+            setExportModalOpen(true)
+          }}
+        >
+          <Download className="h-4 w-4 mr-1.5" />
+          Export SVG
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            trackEvent('click_fork', { slug })
+            setForkModalOpen(true)
+          }}
+        >
+          <GitFork className="h-4 w-4 mr-1.5" />
+          Fork
+        </Button>
+      </div>
+
+      {/* Tab 切换 */}
+      <Tabs defaultValue="explain" className="flex-1 flex flex-col">
+        <TabsList className="w-full justify-start rounded-none border-b bg-transparent px-4">
+          <TabsTrigger value="explain" className="gap-1.5">
+            <BookOpen className="h-3.5 w-3.5" /> 解析
+          </TabsTrigger>
+          <TabsTrigger value="code" className="gap-1.5">
+            <Code2 className="h-3.5 w-3.5" /> 代码
+          </TabsTrigger>
+          <TabsTrigger value="prompt" className="gap-1.5">
+            <Sparkles className="h-3.5 w-3.5" /> Prompt
+          </TabsTrigger>
+        </TabsList>
+
+        <div className="flex-1 overflow-y-auto">
+          <TabsContent value="explain" className="mt-0 p-4">
+            <ExplainPanel content={explainContent} />
+          </TabsContent>
+          <TabsContent value="code" className="mt-0 p-0">
+            <CodePanel code={mermaidCode} />
+          </TabsContent>
+          <TabsContent value="prompt" className="mt-0 p-4">
+            <PromptPanel content={promptContent} />
+          </TabsContent>
+        </div>
+      </Tabs>
+
+      {/* Fake Door 弹窗 */}
+      <WaitlistModal
+        open={exportModalOpen}
+        onOpenChange={setExportModalOpen}
+        feature="export"
+        title="高清导出即将推出 ✨"
+        description="OmniGraph Pro 将支持 SVG / PNG / PDF 无水印导出，完美嵌入你的 PPT 和文档。留下邮箱，获取早鸟 5 折特权！"
+        slug={slug}
+      />
+      <WaitlistModal
+        open={forkModalOpen}
+        onOpenChange={setForkModalOpen}
+        feature="fork"
+        title="私有知识图谱库即将推出 🚀"
+        description="即将支持 Fork 到你的私有 Workspace，自由编辑、团队共享。留下邮箱抢先体验！"
+        slug={slug}
+      />
+    </div>
+  )
+}
+```
+
+### 4.5 Waitlist 邮箱收集弹窗
+
+```typescript
+// components/shared/WaitlistModal.tsx
+'use client'
+
+import { useState } from 'react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { trackEvent } from '@/lib/analytics'
+import { Loader2, CheckCircle2, Mail } from 'lucide-react'
+
+interface WaitlistModalProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  feature: 'export' | 'fork'
+  title: string
+  description: string
+  slug: string
+}
+
+type SubmitState = 'idle' | 'submitting' | 'success' | 'error'
+
+export function WaitlistModal({
+  open,
+  onOpenChange,
+  feature,
+  title,
+  description,
+  slug,
+}: WaitlistModalProps) {
+  const [email, setEmail] = useState('')
+  const [state, setState] = useState<SubmitState>('idle')
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return
+
+    setState('submitting')
+    try {
+      const res = await fetch('https://formspree.io/f/YOUR_FORM_ID', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          feature,
+          source_graph: slug,
+          timestamp: new Date().toISOString(),
+        }),
+      })
+
+      if (res.ok) {
+        setState('success')
+        trackEvent('waitlist_submit', { feature, slug })
+      } else {
+        setState('error')
+      }
+    } catch {
+      setState('error')
+    }
+  }
+
+  const handleClose = (isOpen: boolean) => {
+    if (!isOpen) {
+      // 关闭时重置状态
+      setTimeout(() => {
+        setState('idle')
+        setEmail('')
+      }, 300)
+    }
+    onOpenChange(isOpen)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle className="text-lg">{title}</DialogTitle>
+          <DialogDescription className="text-sm pt-2 leading-relaxed">
+            {description}
+          </DialogDescription>
+        </DialogHeader>
+
+        {state === 'success' ? (
+          <div className="flex flex-col items-center gap-3 py-6">
+            <CheckCircle2 className="h-12 w-12 text-green-500" />
+            <p className="font-medium">感谢订阅！我们会尽快通知你 🎉</p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="flex gap-2 pt-2">
+            <div className="relative flex-1">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="email"
+                placeholder="your@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="pl-9"
+                required
+                disabled={state === 'submitting'}
+              />
+            </div>
+            <Button type="submit" disabled={state === 'submitting'}>
+              {state === 'submitting' ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  提交中
+                </>
+              ) : (
+                '加入等候名单'
+              )}
+            </Button>
+          </form>
+        )}
+
+        {state === 'error' && (
+          <p className="text-sm text-destructive">提交失败，请稍后重试。</p>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+```
+
+### 4.6 内容解析引擎
+
+```typescript
+// lib/content.ts
+
+import fs from 'fs'
+import path from 'path'
+import matter from 'gray-matter'
+import type { GraphFrontmatter, GraphMeta, CategoryInfo } from './types'
+
+const CONTENT_DIR = path.join(process.cwd(), 'content')
+
+/**
+ * 递归扫描 /content 下所有 .mdx 文件
+ */
+export function getAllGraphs(): GraphMeta[] {
+  const graphs: GraphMeta[] = []
+
+  function scan(dir: string, relativePath = '') {
+    const entries = fs.readdirSync(dir, { withFileTypes: true })
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name)
+      const relPath = path.join(relativePath, entry.name)
+
+      if (entry.isDirectory()) {
+        scan(fullPath, relPath)
+      } else if (entry.name.endsWith('.mdx')) {
+        const raw = fs.readFileSync(fullPath, 'utf-8')
+        const { data } = matter(raw)
+        const fm = data as GraphFrontmatter
+        const wordCount = raw.length
+        graphs.push({
+          ...fm,
+          filePath: relPath.replace(/\.mdx$/, ''),
+          readingTime: Math.max(1, Math.ceil(wordCount / 500)),
+        })
+      }
+    }
+  }
+
+  scan(CONTENT_DIR)
+  return graphs.sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  )
+}
+
+/**
+ * 解析单个 MDX 文件，提取 Mermaid / Explain / Prompt 三个块
+ */
+export async function getGraphBySlug(category: string, slug: string) {
+  const filePath = path.join(CONTENT_DIR, category, `${slug}.mdx`)
+  if (!fs.existsSync(filePath)) return null
+
+  const raw = fs.readFileSync(filePath, 'utf-8')
+  const { data, content } = matter(raw)
+
+  // 提取 <Mermaid>...</Mermaid> 块
+  const mermaidMatch = content.match(/<Mermaid>([\s\S]*?)<\/Mermaid>/)
+  const mermaidCode = mermaidMatch ? mermaidMatch[1].trim() : ''
+
+  // 提取 <Explain>...</Explain> 块
+  const explainMatch = content.match(/<Explain>([\s\S]*?)<\/Explain>/)
+  const explainContent = explainMatch ? explainMatch[1].trim() : ''
+
+  // 提取 <Prompt>...</Prompt> 块
+  const promptMatch = content.match(/<Prompt>([\s\S]*?)<\/Prompt>/)
+  const promptContent = promptMatch ? promptMatch[1].trim() : ''
+
+  return {
+    frontmatter: data as GraphFrontmatter,
+    mermaidCode,
+    explainContent,
+    promptContent,
+  }
+}
+
+/**
+ * 获取所有分类及其图谱数量
+ */
+export function getCategories(): CategoryInfo[] {
+  const graphs = getAllGraphs()
+  const categoryMap = new Map<string, number>()
+  
+  graphs.forEach((g) => {
+    categoryMap.set(g.category, (categoryMap.get(g.category) || 0) + 1)
+  })
+
+  const categoryMeta: Record<string, { name: string; description: string; icon: string }> = {
+    'llm-basics': { name: 'LLM 基础', description: '大语言模型核心架构', icon: '🧠' },
+    'rag': { name: 'RAG', description: '检索增强生成', icon: '🔍' },
+    'agent': { name: 'Agent', description: '智能体架构', icon: '🤖' },
+    'mlops': { name: 'MLOps', description: '模型运维工程', icon: '⚙️' },
+    'prompt-engineering': { name: 'Prompt 工程', description: '提示词设计', icon: '✨' },
+    'fine-tuning': { name: '微调', description: '模型微调技术', icon: '🔧' },
+  }
+
+  return Array.from(categoryMap.entries()).map(([slug, count]) => ({
+    slug: slug as any,
+    count,
+    ...(categoryMeta[slug] || { name: slug, description: '', icon: '📊' }),
+  }))
+}
+
+/**
+ * SSG 用：生成所有路由参数
+ */
+export function getAllGraphSlugs(): { category: string; slug: string }[] {
+  return getAllGraphs().map((g) => {
+    const parts = g.filePath.split('/')
+    return {
+      category: parts[0],
+      slug: parts[parts.length - 1],
+    }
+  })
+}
+```
+
+### 4.7 事件追踪封装
+
+```typescript
+// lib/analytics.ts
+
+type EventName =
+  | 'copy_code'
+  | 'click_export'
+  | 'click_fork'
+  | 'waitlist_submit'
+  | 'theme_toggle'
+  | 'tab_switch'
+  | 'search_query'
+
+interface EventProperties {
+  slug?: string
+  feature?: string
+  category?: string
+  query?: string
+  [key: string]: string | number | boolean | undefined
+}
+
+/**
+ * 统一事件追踪，当前使用 Vercel Analytics
+ * 后续可无缝切换至 GA4 / Mixpanel / PostHog
+ */
+export function trackEvent(name: EventName, properties?: EventProperties) {
+  // Vercel Web Analytics 自定义事件
+  if (typeof window !== 'undefined' && (window as any).va) {
+    ;(window as any).va('event', { name, ...properties })
+  }
+
+  // 开发环境打印
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[Analytics] ${name}`, properties)
+  }
+}
+```
+
+### 4.8 ⌘K 快捷搜索（静态索引）
+
+```typescript
+// components/shared/SearchDialog.tsx
+'use client'
+
+import { useState, useEffect, useMemo } from 'react'
+import {
+  CommandDialog,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from '@/components/ui/command'
+import { useRouter } from 'next/navigation'
+import { Search } from 'lucide-react'
+import type { GraphMeta } from '@/lib/types'
+
+interface SearchDialogProps {
+  graphs: GraphMeta[]  // 构建时传入所有图谱元数据
+}
+
+export function SearchDialog({ graphs }: SearchDialogProps) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const router = useRouter()
+
+  // ⌘K / Ctrl+K 快捷键
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setOpen((prev) => !prev)
+      }
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [])
+
+  const results = useMemo(() => {
+    if (!query) return graphs.slice(0, 10)
+    const q = query.toLowerCase()
+    return graphs.filter(
+      (g) =>
+        g.title.toLowerCase().includes(q) ||
+        g.description.toLowerCase().includes(q) ||
+        g.tags.some((t) => t.toLowerCase().includes(q))
+    ).slice(0, 15)
+  }, [query, graphs])
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-2 px-3 py-1.5 text-sm text-muted-foreground border rounded-lg hover:bg-muted transition-colors"
+      >
+        <Search className="h-4 w-4" />
+        <span>搜索图谱…</span>
+        <kbd className="ml-4 text-xs bg-muted px-1.5 py-0.5 rounded">⌘K</kbd>
+      </button>
+
+      <CommandDialog open={open} onOpenChange={setOpen}>
+        <CommandInput
+          placeholder="搜索架构图…"
+          value={query}
+          onValueChange={setQuery}
+        />
+        <CommandList>
+          <CommandEmpty>未找到相关图谱</CommandEmpty>
+          <CommandGroup heading="架构图谱">
+            {results.map((g) => (
+              <CommandItem
+                key={g.filePath}
+                value={g.title}
+                onSelect={() => {
+                  router.push(`/graph/${g.filePath}`)
+                  setOpen(false)
+                }}
+              >
+                <span className="mr-2">{getCategoryIcon(g.category)}</span>
+                <div>
+                  <p className="font-medium">{g.title}</p>
+                  <p className="text-xs text-muted-foreground line-clamp-1">
+                    {g.description}
+                  </p>
+                </div>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        </CommandList>
+      </CommandDialog>
+    </>
+  )
+}
+
+function getCategoryIcon(category: string): string {
+  const icons: Record<string, string> = {
+    'llm-basics': '🧠',
+    rag: '🔍',
+    agent: '🤖',
+    mlops: '⚙️',
+  }
+  return icons[category] || '📊'
+}
+```
+
+### 4.9 SEO 结构化数据
+
+```typescript
+// components/seo/JsonLd.tsx
+
+import type { GraphFrontmatter } from '@/lib/types'
+
+export function JsonLd({ graph }: { graph: GraphFrontmatter }) {
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'TechArticle',
+    headline: graph.title,
+    description: graph.description,
+    author: {
+      '@type': 'Organization',
+      name: 'OmniGraph',
+      url: 'https://omnigraph.dev',
+    },
+    datePublished: graph.date,
+    dateModified: graph.updated || graph.date,
+    keywords: graph.tags.join(', '),
+    publisher: {
+      '@type': 'Organization',
+      name: 'OmniGraph',
+    },
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+    },
+  }
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+    />
+  )
+}
+```
+
+### 4.10 动态 Sitemap
+
+```typescript
+// app/sitemap.ts
+
+import { getAllGraphs } from '@/lib/content'
+import type { MetadataRoute } from 'next'
+
+const BASE_URL = 'https://omnigraph.dev'
+
+export default function sitemap(): MetadataRoute.Sitemap {
+  const graphs = getAllGraphs()
+
+  const graphPages = graphs.map((g) => ({
+    url: `${BASE_URL}/graph/${g.filePath}`,
+    lastModified: new Date(g.updated || g.date),
+    changeFrequency: 'weekly' as const,
+    priority: 0.8,
+  }))
+
+  return [
+    {
+      url: BASE_URL,
+      lastModified: new Date(),
+      changeFrequency: 'daily',
+      priority: 1,
+    },
+    {
+      url: `${BASE_URL}/explore`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.9,
+    },
+    ...graphPages,
+  ]
+}
+```
+
+---
+
+## 五、UI / UX 设计规范
+
+### 5.1 设计语言
+
+| 维度 | 规范 |
+|------|------|
+| **整体风格** | 极客 · 技术感 · 高信息密度，参考 Linear / Raycast |
+| **字体** | 正文: Inter + Noto Sans SC; 代码: JetBrains Mono |
+| **配色基调** | 深色：Slate 900 底 + Blue 400 高亮; 浅色：White 底 + Blue 600 高亮 |
+| **圆角** | 卡片 12px, 按钮 8px, 输入框 8px |
+| **动效** | 页面切换 fade 150ms; 弹窗 scale+fade 200ms; Tab 切换无动画（即时） |
+| **间距系统** | 基于 4px 网格：4 / 8 / 12 / 16 / 24 / 32 / 48 |
+
+### 5.2 响应式断点
+
+| 断点 | 宽度 | 布局 |
+|------|------|------|
+| `sm` | < 640px | 单栏堆叠，隐藏侧边栏，图表区 60vh + Tab 区滚动 |
+| `md` | 640-1024px | 隐藏侧边栏，图表+Tab 左右分栏 50/50 |
+| `lg` | 1024-1440px | 完整三栏：侧边栏 200px + 图表 55% + Tab 45% |
+| `xl` | > 1440px | 三栏，中栏最大宽度限制 960px，居中显示 |
+
+### 5.3 首页设计
+
+```
+┌─────────────────────────────────────────────────────┐
+│  OmniGraph                    [🔍 ⌘K]  [☀️/🌙]     │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│   解构 AI 知识的代码级可视化图谱                       │
+│   50+ 张精选架构图 · 一键复制 · 即学即用               │
+│                                                     │
+│   [开始探索 →]          [GitHub ⭐]                   │
+│                                                     │
+├─────────────────────────────────────────────────────┤
+│  🧠 LLM 基础 (15)    🔍 RAG (12)    🤖 Agent (10)  │
+│  ⚙️ MLOps (8)        ✨ Prompt (5)                  │
+├─────────────────────────────────────────────────────┤
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐            │
+│  │ 卡片预览  │ │ 卡片预览  │ │ 卡片预览  │            │
+│  │ 含缩略图  │ │ 含缩略图  │ │ 含缩略图  │            │
+│  │ +标签    │ │ +标签    │ │ +标签    │            │
+│  └──────────┘ └──────────┘ └──────────┘            │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐            │
+│  │  ...     │ │  ...     │ │  ...     │            │
+│  └──────────┘ └──────────┘ └──────────┘            │
+│                                                     │
+│  [查看全部 50+ 图谱 →]                               │
+│                                                     │
+├─────────────────────────────────────────────────────┤
+│  Footer · GitHub · Twitter · 隐私政策                │
+└─────────────────────────────────────────────────────┘
+```
+
+---
+
+## 六、验收标准（Acceptance Criteria）
+
+> 每条 AC 均标注优先级：**P0** = 必须达标方可上线，**P1** = 上线首周内修复，**P2** = 可延后。
+
+### 模块 A：图表渲染体验
+
+| AC | 描述 | 优先级 | 验证方法 |
+|----|------|--------|----------|
+| A.1 | **主题联动**：切换 Dark/Light 模式时，Mermaid 图表节点背景、边框、连线、文字颜色在 300ms 内无缝切换，不出现"黑底黑字"或"白底白字" | P0 | 手动切换 5 次，截图对比 |
+| A.2 | **画布缩放**：鼠标滚轮 / 触控板双指可平滑缩放（0.3x - 3x），无闪烁抖动 | P0 | Chrome + Safari 测试 |
+| A.3 | **画布拖拽**：长按左键可拖拽平移图表，移动端支持单指拖拽 | P0 | 桌面 + 移动端测试 |
+| A.4 | **复位按钮**：画布右下角"恢复 100% 居中"按钮单击即复位 | P0 | 缩放后点击验证 |
+| A.5 | **超大图表**：50+ 节点的图表不崩坏布局，内容完整渲染，超出部分通过拖拽查看 | P0 | 用最复杂的测试 MDX 验证 |
+| A.6 | **渲染失败降级**：当 Mermaid 语法错误时，显示友好错误提示 + 重试按钮，不白屏 | P0 | 故意写错语法测试 |
+| A.7 | **双指缩放（移动端）**：在移动端支持双指捏合缩放，与页面滚动不冲突 | P1 | iOS Safari + Android Chrome |
+
+### 模块 B：内容与功能
+
+| AC | 描述 | 优先级 | 验证方法 |
+|----|------|--------|----------|
+| B.1 | **种子内容**：`/content` 至少 50 个通过 Mermaid 渲染校验的 MDX 文件，覆盖 ≥ 4 个分类 | P0 | `ls content/**/*.mdx \| wc -l` + 批量渲染测试脚本 |
+| B.2 | **Tab 切换**：Code / 解析 / Prompt 三个 Tab 切换即时（< 50ms），无白屏、无状态丢失 | P0 | 快速反复切换 10 次 |
+| B.3 | **代码高亮**：Code Tab 内 Mermaid 源码使用 Shiki 语法着色，暗色/亮色主题均清晰可读 | P0 | 截图对比 |
+| B.4 | **一键复制**：点击 Copy 按钮后代码进入剪贴板，Toast 提示"已复制"，Chrome / Safari / Firefox 均正常 | P0 | 三大浏览器逐一测试 |
+| B.5 | **Frontmatter 校验**：任何 MDX 缺少必填字段（title, slug, category, description）时，构建阶段报错中断，不允许静默跳过 | P1 | 故意删除必填字段运行 build |
+| B.6 | **⌘K 搜索**：按下 ⌘K 弹出搜索框，输入关键词可实时筛选图谱标题/标签/描述 | P1 | 搜索"RAG"验证结果 |
+
+### 模块 C：转化与埋点
+
+| AC | 描述 | 优先级 | 验证方法 |
+|----|------|--------|----------|
+| C.1 | **弹窗触发**：点击 Export / Fork 按钮后 < 500ms 弹出 Waitlist Modal | P0 | 计时测试 |
+| C.2 | **表单验证**：空邮箱或格式错误时不可提交；正确格式提交后按钮变 "提交中…" → 成功显示 "感谢订阅！" | P0 | 输入各类边界值测试 |
+| C.3 | **后台收到数据**：Formspree 后台能正确收到 email + feature + source_graph + timestamp | P0 | 提交测试邮箱后检查 Formspree Dashboard |
+| C.4 | **事件埋点**：Vercel Analytics 能接收并展示 `copy_code`、`click_export`、`click_fork`、`waitlist_submit` 四个自定义事件 | P0 | Vercel Dashboard 实时事件流验证 |
+| C.5 | **重复提交防护**：同一弹窗成功提交后，按钮不可再次点击（显示已提交状态） | P1 | 连续点击测试 |
+| C.6 | **弹窗关闭重置**：关闭弹窗后重新打开，表单状态重置为初始态 | P1 | 手动流程测试 |
+
+### 模块 D：性能与 SEO
+
+| AC | 描述 | 优先级 | 验证方法 |
+|----|------|--------|----------|
+| D.1 | **动态 TDK**：每个图谱页的 `<title>` 格式为 `{title} - OmniGraph`，`<meta name="description">` 取自 Frontmatter | P0 | 查看页面源代码 |
+| D.2 | **Lighthouse ≥ 90**：首页和任意图谱详情页，Performance / Accessibility / SEO 三项均 ≥ 90 | P0 | Chrome Lighthouse 跑分截图 |
+| D.3 | **OG 社交卡片**：链接粘贴到 Twitter / Slack / 微信群时，能抓取标题 + 描述 + 预览图 | P0 | Twitter Card Validator + 微信实测 |
+| D.4 | **Sitemap**：`/sitemap.xml` 包含所有图谱页 URL，且每次构建自动更新 | P0 | 浏览器访问验证 |
+| D.5 | **robots.txt**：`/robots.txt` 正确允许搜索引擎爬取，指向 sitemap | P0 | 浏览器访问验证 |
+| D.6 | **JSON-LD**：每个图谱页包含 `TechArticle` 类型的结构化数据 | P1 | Google Rich Results Test |
+| D.7 | **Core Web Vitals**：LCP < 2.5s, FID < 100ms, CLS < 0.1 | P1 | Vercel Speed Insights |
+| D.8 | **404 页面**：访问不存在的路由时，显示品牌化的 404 页面而非白屏 | P1 | 访问 `/nonexistent` |
+
+### 模块 E：工程质量
+
+| AC | 描述 | 优先级 | 验证方法 |
+|----|------|--------|----------|
+| E.1 | **TypeScript 零 Error**：`tsc --noEmit` 零错误 | P0 | CI 运行 |
+| E.2 | **构建成功**：`next build` 零错误，SSG 成功生成全部 50+ 页面 | P0 | 构建日志 |
+| E.3 | **CSP Headers**：配置 `Content-Security-Policy` 防止 XSS（允许 `unsafe-inline` 仅限 Mermaid SVG） | P2 | 安全扫描 |
+| E.4 | **无控制台错误**：生产环境访问任意页面，浏览器 Console 无红色 Error | P1 | 抽查 10 个页面 |
+
+---
+
+## 七、风险识别与缓解
+
+| # | 风险 | 可能性 | 影响 | 缓解措施 |
+|---|------|--------|------|----------|
+| R1 | Mermaid 在客户端首次渲染闪烁（FOUC） | 高 | 中 | 渲染前展示骨架屏/Spinner，渲染完成后 `opacity 0→1` 过渡 |
+| R2 | 超复杂图表渲染耗时 > 3s 导致界面卡顿 | 中 | 高 | `node_count > 40` 的图表显示"大型图表加载中"提示；考虑 Web Worker 渲染 |
+| R3 | Mermaid 深色主题变量不生效，出现配色冲突 | 高 | 中 | 提前建立 5 种图表类型的深/浅色测试用例，CI 批量截图对比 |
+| R4 | MDX 文件中 Mermaid 语法错误导致整页崩溃 | 高 | 高 | 编写构建时校验脚本 `validate-mdx.ts`，对每个文件 try-catch 渲染 |
+| R5 | Formspree 免费档 50 次/月用完 | 低 | 中 | 上线时监控提交量，超出前切换到 Resend（100封/天免费）或自建 API Route |
+| R6 | 死磕单张图的美观度导致内容生产进度滞后 | 高 | 高 | **创始人纪律**：MVP 阶段每张图最多调整 15 分钟，只要逻辑正确关系清晰即可发布 |
+| R7 | 移动端 Mermaid SVG 溢出容器或文字过小 | 中 | 中 | `useMaxWidth: false` + 初始化时根据容器宽度计算 `initialScale`，确保首屏可读 |
+
+---
+
+## 八、构建时校验脚本
+
+```typescript
+// scripts/validate-content.ts
+// 运行: npx tsx scripts/validate-content.ts
+
+import fs from 'fs'
+import path from 'path'
+import matter from 'gray-matter'
+
+const CONTENT_DIR = path.join(process.cwd(), 'content')
+const REQUIRED_FIELDS = ['title', 'slug', 'description', 'category', 'diagram_type', 'tags', 'date']
+
+let errors = 0
+let total = 0
+
+function validate(dir: string) {
+  const entries = fs.readdirSync(dir, { withFileTypes: true })
+  
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name)
+    
+    if (entry.isDirectory()) {
+      validate(fullPath)
+      continue
+    }
+    
+    if (!entry.name.endsWith('.mdx')) continue
+    total++
+    
+    const relativePath = path.relative(CONTENT_DIR, fullPath)
+    const raw = fs.readFileSync(fullPath, 'utf-8')
+    const { data, content } = matter(raw)
+    
+    // 检查必填字段
+    for (const field of REQUIRED_FIELDS) {
+      if (!data[field]) {
+        console.error(`❌ [${relativePath}] 缺少必填字段: ${field}`)
+        errors++
+      }
+    }
+    
+    // 检查 <Mermaid> 块存在
+    if (!content.includes('<Mermaid>') || !content.includes('</Mermaid>')) {
+      console.error(`❌ [${relativePath}] 缺少 <Mermaid> 代码块`)
+      errors++
+    }
+    
+    // 检查 <Explain> 块存在
+    if (!content.includes('<Explain>') || !content.includes('</Explain>')) {
+      console.error(`❌ [${relativePath}] 缺少 <Explain> 解析块`)
+      errors++
+    }
+    
+    // 检查 slug 与文件名一致
+    const expectedSlug = entry.name.replace('.mdx', '')
+    if (data.slug !== expectedSlug) {
+      console.error(`❌ [${relativePath}] slug "${data.slug}" 与文件名 "${expectedSlug}" 不一致`)
+      errors++
+    }
+    
+    // 检查 category 与目录名一致
+    const dirName = path.basename(path.dirname(fullPath))
+    if (data.category !== dirName) {
+      console.error(`❌ [${relativePath}] category "${data.category}" 与目录名 "${dirName}" 不一致`)
+      errors++
+    }
+    
+    if (errors === 0) {
+      console.log(`✅ [${relativePath}]`)
+    }
+  }
+}
+
+console.log('🔍 正在校验 /content 目录...\n')
+validate(CONTENT_DIR)
+
+console.log(`\n📊 结果: ${total} 个文件, ${errors} 个错误`)
+if (errors > 0) {
+  console.error('\n❌ 校验失败，请修复上述错误后再构建。')
+  process.exit(1)
+} else {
+  console.log('\n✅ 全部校验通过！')
+}
+```
+
+在 `package.json` 中添加：
+
+```json
+{
+  "scripts": {
+    "validate": "tsx scripts/validate-content.ts",
+    "prebuild": "npm run validate",
+    "build": "next build",
+    "dev": "next dev"
+  }
+}
+```
+
+---
+
+## 九、部署配置
+
+### 9.1 Vercel 配置
+
+```javascript
+// next.config.mjs
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: 'export',  // 纯 SSG，如需 ISR 后续去掉此行
+  
+  // 安全 Headers
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          {
+            key: 'X-XSS-Protection',
+            value: '1; mode=block',
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+        ],
+      },
+    ]
+  },
+}
+
+export default nextConfig
+```
+
+### 9.2 环境变量
+
+```bash
+# .env.local（开发环境，不提交 Git）
+NEXT_PUBLIC_FORMSPREE_ID=your_form_id
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+
+# Vercel 环境变量（生产）
+NEXT_PUBLIC_FORMSPREE_ID=your_form_id
+NEXT_PUBLIC_SITE_URL=https://omnigraph.dev
+```
+
+---
+
+## 十、实施时间表（14 天冲刺）
+
+```
+Week 1: 搭建 + 核心功能
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Day 1    ████████  项目初始化
+         ├── next create + TypeScript + Tailwind + Shadcn
+         ├── 目录结构搭建
+         ├── MDX 解析管线（lib/content.ts）
+         └── Git 仓库 + Vercel 项目关联
+
+Day 2    ████████  路由 + 布局骨架
+         ├── App Router 文件路由（首页/详情页/浏览页）
+         ├── Header / Sidebar / Footer 组件
+         ├── 响应式三栏布局（CSS Grid/Flex）
+         └── Dark/Light 主题切换（next-themes）
+
+Day 3    ████████  Mermaid 渲染引擎
+         ├── MermaidRenderer 客户端组件
+         ├── 深浅色主题变量配置
+         ├── 渲染失败降级 UI
+         └── 5 种图表类型渲染测试
+
+Day 4    ████████  画布交互 + 右侧面板
+         ├── react-zoom-pan-pinch 集成
+         ├── 缩放/拖拽/复位按钮
+         ├── Tab 切换器（Code/Explain/Prompt）
+         └── Shiki 代码高亮
+
+Day 5    ████████  功能按钮 + Waitlist
+         ├── CopyButton + Toast
+         ├── WaitlistModal（Export/Fork）
+         ├── Formspree 表单集成
+         └── ⌘K 搜索对话框
+
+Week 2: 内容 + 打磨 + 发布
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Day 6-9  ████████████████████████████████  内容生产（4天）
+         ├── 使用 AI 批量生成 MDX 框架
+         ├── 人工校验每张图的 Mermaid 语法
+         ├── 撰写/润色 Explain 解析
+         ├── 编写 Prompt 提示词
+         ├── 目标：50 个 MDX，≥4 个分类
+         └── 运行 validate-content 脚本
+
+Day 10   ████████  埋点 + SEO
+         ├── Vercel Analytics 接入
+         ├── 自定义事件配置
+         ├── Sitemap / robots.txt
+         ├── JSON-LD 结构化数据
+         ├── OG 图片（可用 @vercel/og 动态生成）
+         └── generateMetadata 逐页验证
+
+Day 11   ████████  QA（桌面端）
+         ├── 对照验收标准 A-E 逐条核查
+         ├── Chrome / Safari / Firefox 交叉测试
+         ├── Lighthouse 跑分并优化至 ≥90
+         ├── 表单提交全流程测试
+         └── 修 Bug
+
+Day 12   ████████  QA（移动端）+ 修复
+         ├── iOS Safari + Android Chrome 测试
+         ├── 双指缩放 / 响应式布局验证
+         ├── 修复移动端 Bug
+         └── 最终 Lighthouse 跑分确认
+
+Day 13   ████████  正式部署
+         ├── 合并至 main 分支
+         ├── Vercel Production Deploy
+         ├── 自定义域名绑定（omnigraph.dev）
+         ├── 线上冒烟测试
+         └── 整理推广文案
+
+Day 14   ████████  发布推广
+         ├── Product Hunt Launch
+         ├── Hacker News Show HN
+         ├── V2EX / 掘金 / 即刻
+         ├── Twitter / X 技术圈分享
+         └── 监控 Analytics 数据
+```
+
+---
+
+## 十一、内容生产规范
+
+### 11.1 50 篇种子内容规划
+
+| 分类 | 数量 | 示例主题 |
+|------|------|----------|
+| **LLM 基础** (llm-basics) | 15 | Transformer 全架构 · Self-Attention 计算流 · 位置编码对比 · KV Cache 机制 · Tokenizer 流水线 · 预训练→SFT→RLHF 全流程 · 模型量化（GPTQ/AWQ/GGUF）对比 · MoE 架构 · Flash Attention · Speculative Decoding |
+| **RAG** (rag) | 12 | 基础 RAG 流 · Advanced RAG · Hybrid Search · Re-ranking 管线 · 多模态 RAG · GraphRAG · Chunking 策略对比 · RAG 评估流程 · 自适应 RAG · Corrective RAG |
+| **Agent** (agent) | 10 | ReAct Loop · Multi-Agent 编排 · Tool Calling 流程 · Plan-and-Execute · 记忆机制（短期/长期）· Agent 安全护栏 · Code Interpreter 架构 · AutoGPT 架构解析 · CrewAI 多角色 · 自主任务分解 |
+| **MLOps** (mlops) | 8 | 模型服务管线 · Feature Store · A/B 测试 · 模型监控告警 · CI/CD for ML · 模型注册表 · GPU 集群调度 · 向量数据库选型对比 |
+| **Prompt 工程** (prompt-engineering) | 5 | Chain-of-Thought · Few-Shot 模式 · Structured Output · Self-Consistency · Prompt Chaining |
+
+### 11.2 AI 辅助生产 Prompt
+
+```
+你是 OmniGraph 的内容编辑，请为我生成一个关于 "{主题}" 的 MDX 文件。
+
+要求：
+1. 严格遵循以下 Frontmatter 格式（所有字段必填）：
+   ---
+   title: "..."
+   slug: "..." (英文短横线连接)
+   description: "..." (一句话描述，50-100字)
+   category: "..." (只能是 llm-basics/rag/agent/mlops/prompt-engineering)
+   diagram_type: "..." (flowchart/sequence/class/state/mindmap)
+   tags: [...]
+   difficulty: "..." (beginner/intermediate/advanced)
+   node_count: N
+   author: "OmniGraph"
+   date: "{今天日期}"
+   version: 1
+   ---
+
+2. <Mermaid> 块：
+   - 使用有效的 Mermaid 语法
+   - 节点用 emoji + 中英文标注增强可读性
+   - 复杂结构使用 subgraph 分组
+   - 节点数量控制在 8-30 个之间
+   - 使用 style 指令为关键节点着色
+
+3. <Explain> 块：
+   - 用 Markdown 格式写 300-500 字的中文解析
+   - 必须包含"核心逻辑"和"常见陷阱"两个部分
+   - 使用粗体标注关键术语
+
+4. <Prompt> 块：
+   - 给出可复用的 Prompt 模板，让用户可以自行生成类似图表
+   - 包含 5 个以上的明确要求点
+```
+
+---
+
+## 十二、MVP 后续迭代路线图（参考）
+
+> 以下仅作为方向参考，根据 MVP 数据决定优先级。
+
+| 阶段 | 时间 | 功能 | 触发条件 |
+|------|------|------|----------|
+| **v1.1** | MVP + 2周 | RSS Feed · 邮件订阅周报 · 图谱评分/点赞（本地存储） | 有机流量 > 500/周 |
+| **v1.2** | MVP + 1月 | 真实导出功能（SVG/PNG）· 水印机制 · Stripe 付费 | Waitlist 邮箱 > 200 |
+| **v2.0** | MVP + 2月 | 用户注册 · 个人 Workspace · 在线编辑器 | 付费用户 > 50 |
+| **v2.1** | MVP + 3月 | API 开放 · 团队协作 · 企业 SSO | 企业咨询 > 10 |
+
+---
+
+## 十三、创始人备忘录
+
+### ⚡ 红线规则（开发期间贴在显示器上）
+
+1. **15 分钟法则**：单张 Mermaid 图的排版优化不超过 15 分钟。逻辑正确 > 像素完美。
+2. **不加数据库**：MVP 阶段任何需要数据库的需求都用"Fake Door + Formspree"替代。
+3. **不写测试**：MVP 阶段用验收清单手动测试替代自动化测试，省时间。
+4. **先发布再完美**：Day 13 必须部署上线，剩余 Bug 在线上热修复。
+5. **数据说话**：上线 7 天后，用数据回答三个问题——
+   - 哪 5 张图停留时长最高？→ 加大同类内容
+   - Export vs Fork 哪个点击率更高？→ 决定首个付费功能
+   - 自然搜索流量来自哪些关键词？→ 指导下一批内容方向
+
+### 📊 上线后监控 Dashboard
+
+| 指标 | 工具 | 查看频率 |
+|------|------|----------|
+| PV / UV / 停留时长 | Vercel Analytics | 每日 |
+| Copy / Export / Fork 点击事件 | Vercel Analytics Custom Events | 每日 |
+| Waitlist 提交数 | Formspree Dashboard | 每日 |
+| Google 收录页数 | Google Search Console | 每 3 天 |
+| Lighthouse 分数 | 手动 / Vercel Speed Insights | 每周 |
+| GitHub Stars / 社区反馈 | GitHub + 社交媒体 | 每日 |
+
+---
+
+*文档完。开始构建。*
